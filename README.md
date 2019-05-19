@@ -16,6 +16,12 @@ handleError(option, Vue);
 ```
 
 ##### option list
+      option.detectionRequest:是否监听XMLHttpRequest/fetch错误 Boolean（默认为true）
+
+      option.useWindowErr:是否使用window的error事件进行监听错误，如果设置为true则会取消vue的errorHandler监听事件（默认为false）
+
+      option.detectionSourceError:是否监听资源错误捕获 （默认为true）
+
       option.notifyError:接收到错误触发的回调，含有两个入参
                   ~ err：错误信息
                   ~ metaData：
