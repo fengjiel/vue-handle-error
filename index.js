@@ -14,7 +14,7 @@ function getComponentName(vm) {
   } catch (err) {}
 }
 
-function detectOS() {
+function getDetectOS() {
   let sUserAgent = navigator.userAgent
   let isWin = ['Win32', 'Windows'].includes(navigator.platform)
   let isMac = ['Mac68K', 'MacPPC', 'Macintosh', 'MacIntel'].includes(navigator.platform)
@@ -59,34 +59,141 @@ function getBrowserInfo() {
   Sys.version = m[2]
   return Sys
 }
+
+function ReWriteXML(opt) {
+  if (!window.XMLHttpRequest) return;
+  var xmlhttp = window.XMLHttpRequest;
+  var _oldSend = xmlhttp.prototype.send;
+  var _handleEvent = function (event) {
+    if (event && event.currentTarget && event.currentTarget.status !== 200) {
+      notify(opt, 'requestError', {
+        type: ['JsError', 'requestErr'],
+        info: {
+          reqUrl: event.currentTarget.responseURL,
+          reqStatus: event.currentTarget.status,
+          reqStatusText: event.currentTarget.statusText,
+          reqTimeout: event.currentTarget.timeout,
+        },
+      })
+    }
+  }
+  xmlhttp.prototype.send = function () {
+    if (this['addEventListener']) {
+      this['addEventListener']('error', _handleEvent);
+      this['addEventListener']('load', _handleEvent);
+      this['addEventListener']('abort', _handleEvent);
+    } else {
+      var _oldStateChange = this['onreadystatechange'];
+      this['onreadystatechange'] = function (event) {
+        if (this.readyState === 4) {
+          _handleEvent(event);
+        }
+        _oldStateChange && _oldStateChange.apply(this, arguments);
+      };
+    }
+    return _oldSend.apply(this, arguments);
+  }
+}
+
+function RewriteFetch(opt) {
+  if (!window.fetch) return;
+  let _oldFetch = window.fetch;
+  window.fetch = function () {
+    return _oldFetch.apply(this, arguments)
+      .then(res => {
+        if (!res.ok) {
+          // TODO fetch不熟 f**k
+        }
+        return res;
+      })
+      .catch(error => {
+        // TODO
+        throw error;
+      })
+  }
+}
+
+function notify(option, err, info) {
+  let url = window.location.href
+  option.notifyError(err, {
+    browserInfo,
+    detectOS,
+    url,
+    ...info
+  })
+}
 const browserInfo = getBrowserInfo()
-const detectOS = detectOS()
+const detectOS = getDetectOS()
+
 /**
  *
  * @param {*} option
+ * @param     option.detectionRequest //Boolean
+ * @param     option.useWindowErr //Boolean
+ * @param     option.detectionSourceError //Boolean
  * @param     option.notifyError:function for notify error
  * @param {*} Vue
  */
-export default function (option, Vue) {
+export default function (opt, Vue) {
+  if(!Vue) {
+    throw new Error("无法找到Vue实例")
+  }
+  let defaultOption = {
+    detectionRequest:true,
+    useWindowErr:false,
+    detectionSourceError:true,
+    notifyError() {}
+  }
+  let option = {}
+  Object.assign(option,defaultOption,opt);
+
+
+  if (option.detectionRequest !== false) {
+    ReWriteXML(option)
+    RewriteFetch(option)
+  }
+  window.onerror = function (message, source, lineno, colno, error) {
+    let errorType = 'JsError'
+    let target = event.target || event.srcElement;
+    if (target instanceof HTMLScriptElement) {
+      errorType = 'sourceError'
+    }
+    let notifyErr = (option.useWindowErr && errorType === 'JsError') ||
+      (errorType === 'sourceError' && option.detectionSourceError !== false)
+    if (notifyErr) {
+      notify(option, message, {
+        type: ['windowErr', errorType],
+        info: {
+          source,
+          lineno,
+          colno,
+          error
+        },
+      })
+    }
+
+  }
+  if (option.useWindowErr) {
+    return false
+  }
   Vue.config.errorHandler = function (err, vm, info) {
     try {
       if (vm) {
         let componentName = getComponentName(vm)
         let propsData = vm.$options && vm.$options.propsData
-        let url = window.location.href
-        option.notifyError(err, {
-          metaData: {
-            browserInfo,
-            detectOS,
-            componentName,
-            propsData,
-            info,
-            url
-          }
+        notify(option, err, {
+          type: ['vueHandlerErr', 'JsError'],
+          componentName,
+          propsData,
+          info,
         })
       } else {
         option.notifyError(err)
+        notify(option, err, {
+          type: ['vueHandlerErr', 'JsError']
+        })
       }
+      // eslint-disable-next-line no-empty
     } catch (e) {}
   }
 }
