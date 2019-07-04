@@ -4,14 +4,14 @@
 #### 安装
 
 ```bash
-npm install @hetao/vue-handle-error --save
+npm install vue-handle-error --save
 ```
 
 #### 使用
 
 ```javascript
 import Vue from 'vue'
-import handleError from "@hetao/vue-handle-error";
+import handleError from "vue-handle-error";
 handleError(option, Vue);
 ```
 
@@ -33,4 +33,3 @@ handleError(option, Vue);
                       - url：错误发生时所在的url
         
       ...
-      //TODO

@@ -1,14 +1,17 @@
 {
   "name": "vue-handle-error",
-  "version": "0.0.1",
+  "version": "0.2.0",
   "description": "handle vue error",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
-    "handleError"
+    "handleError",
+    "vue",
+    "vue-handle-error"
   ],
-  "author": "liangfengjie@hetao101.com",
+  "author": "lfj123@foxmail.com",
+  "private": false,
   "license": "ISC"
 }

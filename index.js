@@ -1,20 +1,22 @@
-function getComponentName(vm) {
+function getComponentName (vm) {
   try {
     if (vm.$root === vm) return 'root'
-    var name = vm._isVue ?
-      (vm.$options && vm.$options.name) ||
-      (vm.$options && vm.$options._componentTag) :
-      vm.name
+    var name = vm._isVue
+      ? (vm.$options && vm.$options.name) ||
+      (vm.$options && vm.$options._componentTag)
+      : vm.name
     return (
       (name ? 'component <' + name + '>' : 'anonymous component') +
-      (vm._isVue && vm.$options && vm.$options.__file ?
-        ' at ' + (vm.$options && vm.$options.__file) :
-        '')
+      (vm._isVue && vm.$options && vm.$options.__file
+        ? ' at ' + (vm.$options && vm.$options.__file)
+        : '')
     )
-  } catch (err) {}
+  } catch (err) {
+    return null
+  }
 }
 
-function getDetectOS() {
+function getDetectOS () {
   let sUserAgent = navigator.userAgent
   let isWin = ['Win32', 'Windows'].includes(navigator.platform)
   let isMac = ['Mac68K', 'MacPPC', 'Macintosh', 'MacIntel'].includes(navigator.platform)
@@ -50,7 +52,7 @@ function getDetectOS() {
   return 'other'
 }
 
-function getBrowserInfo() {
+function getBrowserInfo () {
   let Sys = {}
   let ua = navigator.userAgent.toLowerCase()
   let re = /(msie|firefox|chrome|opera|version).*?([\d.]+)/
@@ -59,61 +61,63 @@ function getBrowserInfo() {
   Sys.version = m[2]
   return Sys
 }
-
-function ReWriteXML(opt) {
-  if (!window.XMLHttpRequest) return;
-  var xmlhttp = window.XMLHttpRequest;
-  var _oldSend = xmlhttp.prototype.send;
-  var _handleEvent = function (event) {
-    if (event && event.currentTarget && event.currentTarget.status !== 200) {
-      notify(opt, 'requestError', {
-        type: ['JsError', 'requestErr'],
-        info: {
-          reqUrl: event.currentTarget.responseURL,
-          reqStatus: event.currentTarget.status,
-          reqStatusText: event.currentTarget.statusText,
-          reqTimeout: event.currentTarget.timeout,
-        },
-      })
-    }
+function _handleEvent (opt, event) {
+  if (event && event.currentTarget && event.currentTarget.status !== 200) {
+    notify(opt, 'requestError', {
+      type: ['JsError', 'requestErr'],
+      info: {
+        reqUrl: event.currentTarget.responseURL,
+        reqStatus: event.currentTarget.status,
+        reqStatusText: event.currentTarget.statusText,
+        reqTimeout: event.currentTarget.timeout
+      }
+    })
   }
+}
+function reWriteXML (opt) {
+  if (!window.XMLHttpRequest) return
+  var xmlhttp = window.XMLHttpRequest
+  var _oldSend = xmlhttp.prototype.send
+
   xmlhttp.prototype.send = function () {
     if (this['addEventListener']) {
-      this['addEventListener']('error', _handleEvent);
-      this['addEventListener']('load', _handleEvent);
-      this['addEventListener']('abort', _handleEvent);
+      this['addEventListener']('error', _handleEvent)
+      this['addEventListener']('load', _handleEvent)
+      this['addEventListener']('abort', _handleEvent)
     } else {
-      var _oldStateChange = this['onreadystatechange'];
+      var _oldStateChange = this['onreadystatechange']
       this['onreadystatechange'] = function (event) {
         if (this.readyState === 4) {
-          _handleEvent(event);
+          _handleEvent(opt, event)
         }
-        _oldStateChange && _oldStateChange.apply(this, arguments);
-      };
+        _oldStateChange && _oldStateChange.apply(this, arguments)
+      }
     }
-    return _oldSend.apply(this, arguments);
+    return _oldSend.apply(this, arguments)
   }
 }
 
-function RewriteFetch(opt) {
-  if (!window.fetch) return;
-  let _oldFetch = window.fetch;
+function rewriteFetch (opt) {
+  if (!window.fetch) return
+  let _oldFetch = window.fetch
   window.fetch = function () {
     return _oldFetch.apply(this, arguments)
       .then(res => {
-        if (!res.ok) {
-          // TODO fetch不熟 f**k
+        if (!res.ok) { // True if status is HTTP 2xx
+          // 上报错误
+          _handleEvent(opt, res)
         }
-        return res;
+        return res
       })
       .catch(error => {
-        // TODO
-        throw error;
+        // 上报错误
+        _handleEvent(opt, error)
+        throw error
       })
   }
 }
 
-function notify(option, err, info) {
+function notify (option, err, info) {
   let url = window.location.href
   option.notifyError(err, {
     browserInfo,
@@ -134,66 +138,74 @@ const detectOS = getDetectOS()
  * @param     option.notifyError:function for notify error
  * @param {*} Vue
  */
+
 export default function (opt, Vue) {
-  if(!Vue) {
-    throw new Error("无法找到Vue实例")
+  if (!Vue) {
+    throw new Error('无法找到Vue实例')
   }
+  if (process.env.NODE_ENV === 'development') {
+    return
+  }
+
   let defaultOption = {
-    detectionRequest:true,
-    useWindowErr:false,
-    detectionSourceError:true,
-    notifyError() {}
+    detectionRequest: true,
+    useWindowErr: false,
+    detectionSourceError: true,
+    notifyError () {}
   }
   let option = {}
-  Object.assign(option,defaultOption,opt);
-
+  Object.assign(option, defaultOption, opt)
 
   if (option.detectionRequest !== false) {
-    ReWriteXML(option)
-    RewriteFetch(option)
+    reWriteXML(option)
+    rewriteFetch(option)
   }
-  window.onerror = function (message, source, lineno, colno, error) {
-    let errorType = 'JsError'
-    let target = event.target || event.srcElement;
-    if (target instanceof HTMLScriptElement) {
-      errorType = 'sourceError'
-    }
-    let notifyErr = (option.useWindowErr && errorType === 'JsError') ||
-      (errorType === 'sourceError' && option.detectionSourceError !== false)
-    if (notifyErr) {
-      notify(option, message, {
-        type: ['windowErr', errorType],
+
+  window.addEventListener('error', e => {
+    e.stopImmediatePropagation()
+    const srcElement = e.srcElement
+    if (srcElement === window && option.useWindowErr) {
+      notify(option, e.message, {
+        type: ['windowErr', 'sourceError'],
         info: {
-          source,
-          lineno,
-          colno,
-          error
-        },
+          filename: e.filename,
+          type: e.type,
+          lineno: e.lineno,
+          colno: e.colno
+        }
       })
     }
 
-  }
-  if (option.useWindowErr) {
-    return false
-  }
-  Vue.config.errorHandler = function (err, vm, info) {
-    try {
-      if (vm) {
-        let componentName = getComponentName(vm)
-        let propsData = vm.$options && vm.$options.propsData
-        notify(option, err, {
-          type: ['vueHandlerErr', 'JsError'],
-          componentName,
-          propsData,
-          info,
-        })
-      } else {
-        option.notifyError(err)
-        notify(option, err, {
-          type: ['vueHandlerErr', 'JsError']
-        })
-      }
-      // eslint-disable-next-line no-empty
-    } catch (e) {}
+    if (srcElement !== window && option.detectionSourceError) {
+      notify(option, `tag:${srcElement.tagName} src:${srcElement.src} error`, {
+        type: ['windowErr', 'sourceError'],
+        info: {
+          tagName: srcElement.tagName,
+          src: srcElement.src,
+          type: e.type
+        }
+      })
+    }
+  }, true)
+  if (!option.useWindowErr) {
+    Vue.config.errorHandler = function (err, vm, info) {
+      try {
+        if (vm) {
+          let componentName = getComponentName(vm)
+          let propsData = vm.$options && vm.$options.propsData
+          notify(option, err, {
+            type: ['vueHandlerErr', 'JsError'],
+            componentName,
+            propsData,
+            info
+          })
+        } else {
+          option.notifyError(err)
+          notify(option, err, {
+            type: ['vueHandlerErr', 'JsError']
+          })
+        }
+      } catch (e) {}
+    }
   }
 }
