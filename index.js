@@ -1,15 +1,15 @@
 function getComponentName (vm) {
   try {
     if (vm.$root === vm) return 'root'
-    var name = vm._isVue
-      ? (vm.$options && vm.$options.name) ||
-      (vm.$options && vm.$options._componentTag)
-      : vm.name
+    var name = vm._isVue ?
+      (vm.$options && vm.$options.name) ||
+      (vm.$options && vm.$options._componentTag) :
+      vm.name
     return (
       (name ? 'component <' + name + '>' : 'anonymous component') +
-      (vm._isVue && vm.$options && vm.$options.__file
-        ? ' at ' + (vm.$options && vm.$options.__file)
-        : '')
+      (vm._isVue && vm.$options && vm.$options.__file ?
+        ' at ' + (vm.$options && vm.$options.__file) :
+        '')
     )
   } catch (err) {
     return null
@@ -61,6 +61,7 @@ function getBrowserInfo () {
   Sys.version = m[2]
   return Sys
 }
+
 function _handleEvent (opt, event) {
   if (event && event.currentTarget && event.currentTarget.status !== 200) {
     notify(opt, 'requestError', {
@@ -74,6 +75,7 @@ function _handleEvent (opt, event) {
     })
   }
 }
+
 function reWriteXML (opt) {
   if (!window.XMLHttpRequest) return
   var xmlhttp = window.XMLHttpRequest
@@ -143,15 +145,15 @@ export default function (opt, Vue) {
   if (!Vue) {
     throw new Error('无法找到Vue实例')
   }
-  if (process.env.NODE_ENV === 'development') {
-    return
-  }
+  // if (process.env.NODE_ENV === 'development') {
+  //   return
+  // }
 
   let defaultOption = {
     detectionRequest: true,
     useWindowErr: false,
     detectionSourceError: true,
-    notifyError () {}
+    notifyError () { }
   }
   let option = {}
   Object.assign(option, defaultOption, opt)
@@ -205,7 +207,7 @@ export default function (opt, Vue) {
             type: ['vueHandlerErr', 'JsError']
           })
         }
-      } catch (e) {}
+      } catch (e) { }
     }
   }
 }
