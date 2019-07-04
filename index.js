@@ -1,15 +1,15 @@
 function getComponentName (vm) {
   try {
     if (vm.$root === vm) return 'root'
-    var name = vm._isVue ?
-      (vm.$options && vm.$options.name) ||
-      (vm.$options && vm.$options._componentTag) :
-      vm.name
+    var name = vm._isVue
+      ? (vm.$options && vm.$options.name) ||
+      (vm.$options && vm.$options._componentTag)
+      : vm.name
     return (
       (name ? 'component <' + name + '>' : 'anonymous component') +
-      (vm._isVue && vm.$options && vm.$options.__file ?
-        ' at ' + (vm.$options && vm.$options.__file) :
-        '')
+      (vm._isVue && vm.$options && vm.$options.__file
+        ? ' at ' + (vm.$options && vm.$options.__file)
+        : '')
     )
   } catch (err) {
     return null
@@ -63,16 +63,18 @@ function getBrowserInfo () {
 }
 
 function _handleEvent (opt, event) {
-  if (event && event.currentTarget && event.currentTarget.status !== 200) {
-    notify(opt, 'requestError', {
-      type: ['JsError', 'requestErr'],
-      info: {
-        reqUrl: event.currentTarget.responseURL,
-        reqStatus: event.currentTarget.status,
-        reqStatusText: event.currentTarget.statusText,
-        reqTimeout: event.currentTarget.timeout
-      }
-    })
+  if (event && event.currentTarget && ![200, 201, 202, 203, 204, 205, 206].includes(event.currentTarget.status)) {
+    try {
+      notify(opt, `requestError:${event.currentTarget.status}`, {
+        type: ['JsError', 'requestErr'],
+        info: {
+          reqUrl: event.currentTarget.responseURL,
+          reqStatus: event.currentTarget.status,
+          reqStatusText: event.currentTarget.statusText,
+          reqTimeout: event.currentTarget.timeout
+        }
+      })
+    } catch (error) { console.log(error) }
   }
 }
 
@@ -83,9 +85,9 @@ function reWriteXML (opt) {
 
   xmlhttp.prototype.send = function () {
     if (this['addEventListener']) {
-      this['addEventListener']('error', _handleEvent)
-      this['addEventListener']('load', _handleEvent)
-      this['addEventListener']('abort', _handleEvent)
+      this['addEventListener']('error', (e) => _handleEvent(opt, e))
+      this['addEventListener']('load', (e) => _handleEvent(opt, e))
+      this['addEventListener']('abort', (e) => _handleEvent(opt, e))
     } else {
       var _oldStateChange = this['onreadystatechange']
       this['onreadystatechange'] = function (event) {
