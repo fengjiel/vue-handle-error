@@ -67,7 +67,7 @@ function _handleEvent (opt, event) {
     try {
       notify(opt, `requestError:${event.currentTarget.status}`, {
         type: ['JsError', 'requestErr'],
-        info: {
+        content: {
           reqUrl: event.currentTarget.responseURL,
           reqStatus: event.currentTarget.status,
           reqStatusText: event.currentTarget.statusText,
@@ -137,7 +137,7 @@ const detectOS = getDetectOS()
  *
  * @param {*} option
  * @param     option.detectionRequest //Boolean
- * @param     option.useWindowErr //Boolean
+ * @param     option.useWindowError //Boolean
  * @param     option.detectionSourceError //Boolean
  * @param     option.notifyError:function for notify error
  * @param {*} Vue
@@ -147,13 +147,10 @@ export default function (opt, Vue) {
   if (!Vue) {
     throw new Error('无法找到Vue实例')
   }
-  // if (process.env.NODE_ENV === 'development') {
-  //   return
-  // }
 
   let defaultOption = {
     detectionRequest: true,
-    useWindowErr: false,
+    useWindowError: false,
     detectionSourceError: true,
     notifyError () { }
   }
@@ -168,10 +165,10 @@ export default function (opt, Vue) {
   window.addEventListener('error', e => {
     e.stopImmediatePropagation()
     const srcElement = e.srcElement
-    if (srcElement === window && option.useWindowErr) {
+    if (srcElement === window && option.useWindowError) {
       notify(option, e.message, {
         type: ['windowErr', 'sourceError'],
-        info: {
+        content: {
           filename: e.filename,
           type: e.type,
           lineno: e.lineno,
@@ -183,7 +180,7 @@ export default function (opt, Vue) {
     if (srcElement !== window && option.detectionSourceError) {
       notify(option, `tag:${srcElement.tagName} src:${srcElement.src} error`, {
         type: ['windowErr', 'sourceError'],
-        info: {
+        content: {
           tagName: srcElement.tagName,
           src: srcElement.src,
           type: e.type
@@ -191,7 +188,7 @@ export default function (opt, Vue) {
       })
     }
   }, true)
-  if (!option.useWindowErr) {
+  if (!option.useWindowError) {
     Vue.config.errorHandler = function (err, vm, info) {
       try {
         if (vm) {
@@ -200,13 +197,17 @@ export default function (opt, Vue) {
           notify(option, err, {
             type: ['vueHandlerErr', 'JsError'],
             componentName,
-            propsData,
-            info
+            content: {
+              info,
+              propsData
+            }
           })
         } else {
-          option.notifyError(err)
           notify(option, err, {
-            type: ['vueHandlerErr', 'JsError']
+            type: ['vueHandlerErr', 'JsError'],
+            content: {
+              info
+            }
           })
         }
       } catch (e) { }
